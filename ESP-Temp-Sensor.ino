@@ -16,12 +16,19 @@ String subTopic;
 String pubTopic;
 String tempTopic;
 
-char* getTemp() {
-  float temperature = dht.getTemperature();
-  char result[8];
-  dtostrf(temperature, 6, 2, result);
-  return result;
+String getTemp() {
 
+  String temp = String(dht.getTemperature());
+
+  if (dht.getStatus() != 0) {
+    Serial.println("DHT11 error status: " + String(dht.getStatusString()));
+    temp = "-274";
+  }
+  iot.configuration.set("my-Temperature", temp);
+  iot.configuration.save();
+  iot.mqtt.publish("stat/frontdoor/battery", 1, true, "empty" );
+
+  return temp;
 }
 
 void setup() {
@@ -37,9 +44,6 @@ void setup() {
 
   room = iot.configuration.get("my-Room");
 
-  Serial.print(room);
-  Serial.print(": ");
-  Serial.print(temp);
 
   iot.web.addInterfaceElement(
     "tempDisplay",
@@ -55,19 +59,19 @@ void setup() {
   );
   iot.mqtt.onPublish(mqttPublished);
 
-//  iot.web.server.on(
-//    "/temperature",
-//    HTTP_GET,
-//    [](AsyncWebServerRequest * request)
-//  {
-//    AsyncWebServerResponse *response =
-//      request->beginResponse(
-//        200,
-//        "text/plain",
-//        getTemp();
-//      );
-//    request->send(response);
-//  });
+  iot.web.server.on(
+    "/temperature",
+    HTTP_GET,
+    [](AsyncWebServerRequest * request)
+  {
+    AsyncWebServerResponse *response =
+      request->beginResponse(
+        200,
+        "text/plain",
+        getTemp()
+      );
+    request->send(response);
+  });
 }
 
 
@@ -92,7 +96,7 @@ void mqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties pr
   Serial.print("Payload:");
   Serial.println(payload);
 
-  iot.mqtt.publish(tempTopic.c_str(), 1, true, getTemp());
+  iot.mqtt.publish(tempTopic.c_str(), 1, true, getTemp().c_str());
 };
 
 void mqttPublished(uint16_t packetId) {
@@ -103,5 +107,6 @@ void mqttPublished(uint16_t packetId) {
 void loop() {
   delay(10000);
   Serial.print("Temperatur: ");
-  Serial.println(getTemp());
+  temp = getTemp();
+  Serial.println(temp);
 }
