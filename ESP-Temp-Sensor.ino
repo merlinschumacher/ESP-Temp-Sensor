@@ -109,4 +109,5 @@ void loop() {
   Serial.print("Temperatur: ");
   temp = getTemp();
   Serial.println(temp);
+  iot.mqtt.publish(tempTopic.c_str(), 1, true, temp.c_str());
 }
